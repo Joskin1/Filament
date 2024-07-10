@@ -1,17 +1,13 @@
 <?php
 
+use App\Http\Controllers\PostController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
+Route::get('/   ', function () {
     return view('welcome');
 });
+Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', [PostController::class, 'dashboard'])->name('dashboard');
+Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
 
-Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    'verified',
-])->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-});
+
+
