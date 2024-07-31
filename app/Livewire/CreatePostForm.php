@@ -1,13 +1,12 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Livewire;
 
-use App\Filament\Exports\UserExporter;
-use App\Filament\Resources\PostResource\Pages;
-use App\Filament\Resources\PostResource\RelationManagers;
 use App\Models\Category;
 use App\Models\Post;
-use DateTime;
+use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Grid;
 use Filament\Forms;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
@@ -17,42 +16,53 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Resources\Resource;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\IconPosition;
-use Filament\Tables;
-use App\Filament\Exports\ProductExporter;
-use Filament\Tables\Actions\ExportAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
+use Livewire\Attributes\Layout;
 use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 
-class PostResource extends Resource
+class CreatePostForm extends Component implements HasForms
 {
-    protected static ?string $model = Post::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    use InteractsWithForms;
+    #[Layout('layouts.app')]
+    public ?array $data = [];
 
-    public static function form(Form $form): Form
+    public function mount(): void
     {
+        $this->form->fill();
+    }
+
+    public function form(Form $form): Form
+    {
+
         return $form
             ->schema([
                 Tabs::make('Create New Post')->tabs([
                     Tab::make('Title')
+                        ->extraAttributes(['class' => 'p-4 text-yellow-400 bg-blue-100 rounded-lg']) // Adding background color and padding
                         ->icon('heroicon-o-circle-stack')
                         ->iconPosition(IconPosition::After)
                         ->badge('Hi')
                         ->schema([
                             TextInput::make('title')
                                 ->live()
+                                ->label('Post Title')
+                                ->placeholder('Enter the post title here')
+                                ->prefixIcon('heroicon-o-pencil')
+                                ->suffixIcon('heroicon-o-check')
+                                ->extraInputAttributes(['class' => 'border-2 border-blue-500 rounded-lg'])
                                 ->required()
                                 ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
                                     if ($operation === 'edit') {
                                         return;
                                     }
-                                    $set('slug', Str::slug($state));
+                                    $set('slug', str::slug($state));
                                 }),
                             TextInput::make('slug')
                                 ->required()
@@ -76,7 +86,8 @@ class PostResource extends Resource
                     Tab::make('Content')
                         ->icon('heroicon-o-pencil-square')
                         ->schema([
-                            MarkdownEditor::make('body')->required()->columnSpanFull(),
+                            TextInput::make('body')->required(),
+
                         ]),
                     Tab::make('Meta')
                         ->icon('heroicon-o-photo')
@@ -85,58 +96,38 @@ class PostResource extends Resource
                             DateTimePicker::make('publish_at'),
                         ]),
 
-                ])->columnSpanFull(),
+                ])
+                    ->extraAttributes(['class' => 'p-4 bg-yellow-400 rounded-lg'])
+
+                    ->statePath('data')
+                    // ->model(Category::class)
+                    ->model(Post::class)
 
             ]);
     }
-
-    public static function table(Table $table): Table
+    public function create(): void
     {
-        return $table
-            ->columns([
-                TextColumn::make('title')
-                    ->sortable()
-                    ->searchable(),
-                TextColumn::make('slug')
-                    ->sortable()
-                    ->searchable(),
-                TextColumn::make('category.name')
-                    ->label('Category')
-                    ->searchable(),
-                TextColumn::make('publish_at')
-                    ->sortable()
-                    ->dateTime('d/m/Y H:i')
-                    ->label('Publish At'),
-            ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-
-            ])
-
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+       $post = Post::create($this->form->getState());
+        Notification::make()
+        ->title('Saved successfully')
+        ->icon('heroicon-o-document-text')
+        ->iconColor('success')
+        ->success()
+        ->body('Changes to the post have been saved.')
+        ->actions([
+            Action::make('view')
+                ->button()
+                ->url(route('posts.show', $post), shouldOpenInNewTab: true),
+            Action::make('undo')
+                ->color('gray'),
+        ])
+        ->duration(5000)
+        ->send();
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
 
-    public static function getPages(): array
+    public function render()
     {
-        return [
-            'index' => Pages\ListPosts::route('/'),
-            'create' => Pages\CreatePost::route('/create'),
-            'edit' => Pages\EditPost::route('/{record}/edit'),
-        ];
+        return view('livewire.create-post-form');
     }
 }
